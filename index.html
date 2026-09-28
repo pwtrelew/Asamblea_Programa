@@ -8,10 +8,10 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel -->
+    <!-- Babel para compilar React en el navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Import Maps para React y Lucide -->
+    <!-- Import Maps para React, ReactDOM y Lucide Icons -->
     <script type="importmap">
     {
       "imports": {
@@ -23,47 +23,67 @@
     </script>
     
     <style>
-        ::-webkit-scrollbar { width: 8px; }
+        /* Estilos de barra de desplazamiento para móviles */
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         body { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased selection:bg-sky-200 selection:text-sky-900">
+<body class="bg-slate-100 text-slate-800 antialiased">
     
     <div id="root"></div>
 
+    <!-- Script principal de la aplicación -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Clock, BookOpen, Calendar, HelpCircle, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2 } from 'lucide-react';
+        import { Clock, BookOpen, Calendar, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2 } from 'lucide-react';
         
-        // Importaciones de Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Importaciones modulares de Firebase (usamos CDN)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Letras de canciones
+        // ==========================================
+        // CONFIGURACIÓN DE FIREBASE (Tus llaves)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGWUJZCTBSQZKBqLS5YUoYk16CeospWqM",
+            authDomain: "programa-asamblea.firebaseapp.com",
+            projectId: "programa-asamblea",
+            storageBucket: "programa-asamblea.firebasestorage.app",
+            messagingSenderId: "765056677896",
+            appId: "1:765056677896:web:f7f2ad6545e2208e7739bd"
+        };
+        
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // ==========================================
+        // DATOS DEL PROGRAMA (Letras y Horarios)
+        // ==========================================
         const songLyrics = {
           'v2': { title: '160. Ya veo a mi nuevo yo', text: `1. En el paraíso que va a llegar,\ncon todo detalle me suelo mirar:\nla Tierra perfecta, limpia, feliz,\nlas flores que adornan de un tono carmín.\n\n(ESTRIBILLO)\nCierro los ojos... ¿qué es lo que veo?\nUn mundo hermoso, paz y recreo.\nYa no hay tristeza, se fue el dolor;\nDios ha triunfado, venció el amor.\n\n2. El día amanece, respiro paz.\nPor fin el pasado no duele jamás.\nYa siento en mi cara la suave brisa\ny todas mis penas se vuelven sonrisas.\n\n(Estribillo)` },
-          'v4': { title: '17. "Quiero"', text: `1. Padeces mucho dolor.\nSufres tal vez por error\nal pensar que eres tú\naquel a quien nadie ama hoy.\nJehová jamás te va a olvidar;\nfíjate bien en Jesús:\nél nunca te abandonará,\nporque de Dios es la luz.\n\n(ESTRIBILLO)\nAl mirar al pobre,\nal ciego o al viudo,\nsiempre dijo "quiero".\nAl mendigo, al cojo,\nal mudo, con amor,\nél sanó diciendo "quiero".\nAl curar con gran compasión,\ndemostró cuánto te ama Jehová.\n\n2. Tal vez no puedas ver hoy\nlo mucho que vale tu amor.\nQuizá pienses de más\ny creas que estorbas a Dios.\nPero Jehová cerca está\nde los que sufren dolor.\nNo dudes nunca de su bondad,\nfíjate en el Creador.\n\n(Estribillo)` },
-          'v6': { title: '14. Alabemos al Rey de la eternidad', text: `1. A Jehová cantaremos con júbilo hoy\npor su gloria, grandeza, justicia y amor.\nCielos y Tierra proclaman a una voz:\n"Rey eterno y soberano es nuestro Dios".\n\n(ESTRIBILLO)\nA ti sea la gloria, honor y poder,\npues creaste la vida por tu voluntad.\nTe servimos unidos por todo el saber,\nalabamos al Rey de la eternidad.\n\n2. En su trono en los cielos gobierna Jehová,\nsus caminos son rectos, sus actos verdad.\nTodos los pueblos le deben adoración,\nle rendimos homenaje de corazón.\n\n(Estribillo)` },
-          'v8': { title: '23. Jehová da fuerzas', text: `1. Quieres predicar\nsin desfallecer.\nCuando no hay vigor\npara responder,\npiensa que tu Dios\nno te dejará.\nNunca dudes de su amor;\nDios te ayudará.\n\n(ESTRIBILLO)\nTu Señor te cuidará,\nsu poder te sostendrá.\nFuerzas nuevas te dará.\nDigno eres de volar.\nSube al cielo como el águila,\ntu vigor Dios renovará.\n\n2. Sigue a tu Señor\ny no mires atrás.\nNo te cansarás\nsi tú en él confías más.\nSiempre ora a él,\nél responderá.\nPon tu fe y tu corazón;\nDios te ayudará.\n\n(Estribillo)` },
-          'v10': { title: '76. ¿Cómo te sientes al ver el final?', text: `1. Al ver que el fin ya se acerca,\n¿sientes terror o sientes paz?\n¿Es un alivio en tu mente\no tienes miedo del final?\nSi hoy te preparas con fe,\ntu alma por fin libre será.\n\n(ESTRIBILLO)\nCuando este mundo se acabe,\nverás que el paraíso está en pie.\nEse es el día anhelado\nque siempre esperaste con fe.\n\n2. Los cielos nuevos, la Tierra,\nya no habrá llanto ni dolor.\nSe acabarán las guerras,\ngobernará nuestro Señor.\nAl ver su rostro al fin,\nle rendiremos alto honor.\n\n(Estribillo)` },
-          'v12': { title: '155. ¡Feliz día!', text: `1. Es un día feliz, ¡gloria a Jehová!\nHa llegado el fin de la maldad.\nYa no corre el llanto en nuestro mirar,\nnuestra fe y amor triunfaron al final.\n\n(ESTRIBILLO)\n¡Celebremos ya, cantemos hoy!\nLa promesa cumplida se ve mejor.\nLa vida eterna es una realidad,\nen paz y alegría, ¡feliz día de paz!\n\n2. Trabajando unidos en hermandad,\nconstruyendo juntos este hogar.\nLa paciencia y fe tuvieron lugar,\neste día es nuestro para festejar.\n\n(Estribillo)` },
+          'v5': { title: '17. "Quiero"', text: `1. Padeces mucho dolor.\nSufres tal vez por error\nal pensar que eres tú\naquel a quien nadie ama hoy.\nJehová jamás te va a olvidar;\nfíjate bien en Jesús:\nél nunca te abandonará,\nporque de Dios es la luz.\n\n(ESTRIBILLO)\nAl mirar al pobre,\nal ciego o al viudo,\nsiempre dijo "quiero".\nAl mendigo, al cojo,\nal mudo, con amor,\nél sanó diciendo "quiero".\nAl curar con gran compasión,\ndemostró cuánto te ama Jehová.\n\n2. Tal vez no puedas ver hoy\nlo mucho que vale tu amor.\nQuizá pienses de más\ny creas que estorbas a Dios.\nPero Jehová cerca está\nde los que sufren dolor.\nNo dudes nunca de su bondad,\nfíjate en el Creador.\n\n(Estribillo)` },
+          'v7': { title: '14. Alabemos al Rey de la eternidad', text: `1. A Jehová cantaremos con júbilo hoy\npor su gloria, grandeza, justicia y amor.\nCielos y Tierra proclaman a una voz:\n"Rey eterno y soberano es nuestro Dios".\n\n(ESTRIBILLO)\nA ti sea la gloria, honor y poder,\npues creaste la vida por tu voluntad.\nTe servimos unidos por todo el saber,\nalabamos al Rey de la eternidad.\n\n2. En su trono en los cielos gobierna Jehová,\nsus caminos son rectos, sus actos verdad.\nTodos los pueblos le deben adoración,\nle rendimos homenaje de corazón.\n\n(Estribillo)` },
+          'v9': { title: '23. Jehová da fuerzas', text: `1. Quieres predicar\nsin desfallecer.\nCuando no hay vigor\npara responder,\npiensa que tu Dios\nno te dejará.\nNunca dudes de su amor;\nDios te ayudará.\n\n(ESTRIBILLO)\nTu Señor te cuidará,\nsu poder te sostendrá.\nFuerzas nuevas te dará.\nDigno eres de volar.\nSube al cielo como el águila,\ntu vigor Dios renovará.\n\n2. Sigue a tu Señor\ny no mires atrás.\nNo te cansarás\nsi tú en él confías más.\nSiempre ora a él,\nél responderá.\nPon tu fe y tu corazón;\nDios te ayudará.\n\n(Estribillo)` },
+          'v12': { title: '76. ¿Cómo te sientes al ver el final?', text: `1. Al ver que el fin ya se acerca,\n¿sientes terror o sientes paz?\n¿Es un alivio en tu mente\no tienes miedo del final?\nSi hoy te preparas con fe,\ntu alma por fin libre será.\n\n(ESTRIBILLO)\nCuando este mundo se acabe,\nverás que el paraíso está en pie.\nEse es el día anhelado\nque siempre esperaste con fe.\n\n2. Los cielos nuevos, la Tierra,\nya no habrá llanto ni dolor.\nSe acabarán las guerras,\ngobernará nuestro Señor.\nAl ver su rostro al fin,\nle rendiremos alto honor.\n\n(Estribillo)` },
+          'v14': { title: '155. ¡Feliz día!', text: `1. Es un día feliz, ¡gloria a Jehová!\nHa llegado el fin de la maldad.\nYa no corre el llanto en nuestro mirar,\nnuestra fe y amor triunfaron al final.\n\n(ESTRIBILLO)\n¡Celebremos ya, cantemos hoy!\nLa promesa cumplida se ve mejor.\nLa vida eterna es una realidad,\nen paz y alegría, ¡feliz día de paz!\n\n2. Trabajando unidos en hermandad,\nconstruyendo juntos este hogar.\nLa paciencia y fe tuvieron lugar,\neste día es nuestro para festejar.\n\n(Estribillo)` },
           's2': { title: '111. "Llamará"', text: `1. Se corta la vida, nos llena el dolor,\nse marcha un amigo, se apaga la luz.\nNo hay forma de echar para atrás el reloj,\nel llanto es amargo, se siente la cruz.\nMas Dios no se olvida, lo tiene en su mente,\nel sueño es muy breve, pronto acabará.\n\n(ESTRIBILLO)\nLlamará. Jehová llamará.\nTodos los muertos se levantarán.\nPara ti, de nuevo habrá luz.\nTus seres queridos muy pronto vendrán.\nJehová por los muertos dará la salud,\nsu amor los hará despertar.\n\n2. El sueño no duele, es un gran letargo,\ntu amigo descansa sin miedo y temor.\nLa angustia no hiere su corazón manso,\nsolo está dormido por un tiempo menor.\nTen fe en la promesa de un mundo distinto,\nel Creador de la vida lo revivirá.\n\n(Estribillo)` },
-          's4': { title: '89. Te ruego, oye mi oración', text: `1. Oh, mi Señor, creador universal,\nescucha hoy mi ruego, por favor.\nConoces bien mi alma y mi pesar,\nno quiero nunca herir tu corazón.\n\n(ESTRIBILLO)\nOye mi voz, mi oración, Jehová.\nGuía mis pasos en tu caminar.\nQue mi sendero vaya tras la paz,\ny a tu lado yo me mantendré capaz.\n\n2. El enemigo quiere verme caer,\ntentaciones me asechan sin piedad.\nMas con tu espíritu me sostendré,\ntu amor será mi eterna libertad.\n\n(Estribillo)` },
-          's7': { title: '51. Estamos dedicados a Dios', text: `1. Jehová nos atrajo a Jesús con amor.\nA él seguiremos desde hoy.\nCuando la verdad de Dios\nnos llegó al corazón,\ndecidimos prometer\nservir a Dios con gran fe.\n\n(ESTRIBILLO)\nLa vida le hemos dedicado a Dios.\nFelices tomamos la decisión.\n\n2. Dijimos en una oración especial:\n"Por siempre te serviré, Jehová".\nOh, qué gran felicidad\nes hacer su voluntad,\nsu gobierno proclamar,\nsu santo nombre llevar.\n\n(Estribillo)` },
-          's9': { title: '125. "Felices los que tienen misericordia"', text: `1. Jehová es el Dios de inmensa compasión,\nconoce muy bien a su gran creación.\nSu misericordia perdura en honor,\nperdona los fallos de su siervo menor.\n\n(ESTRIBILLO)\nFelices los que a otros perdonan,\nque cubren faltas con gran amor.\nLa misma gracia que a otros donan,\nles dará el Gran Creador.\n\n2. El mundo hoy vive en odio y rencor,\nmas nosotros debemos mostrar el favor.\nTratando a todos con franca bondad,\nimitaremos la gran santidad.\n\n(Estribillo)` },
-          's11': { title: '81. La vida de un precursor', text: `1. Qué linda es la vida sirviendo a Jehová.\nA todos llevamos consuelo y paz.\nHablando del Reino, logramos llevar\nlas buenas noticias que habrán de llegar.\n\n(ESTRIBILLO)\nSer un precursor es mi vida.\nHablar de tu Reino es honor.\nEnseñar a la gente perdida,\nes algo que me llena de amor.\n\n2. Mis horas, mi esfuerzo, le entrego al Señor.\nYo sé que él aprecia mi humilde labor.\nAmigos sinceros yo pude encontrar,\nsirviendo unidos con mismo afán.\n\n(Estribillo)` },
-          's14': { title: '21. "Danos valor"', text: `1. Oh, Padre, hay tantas aflicciones.\nEl mundo nos quiere asustar.\nVivimos en tiempos difíciles,\nno nos queremos callar.\nA veces sentimos que el miedo\nnos nubla el camino a seguir.\n\n(ESTRIBILLO)\nDanos valor, Jehová,\ndanos el pecho para aguantar.\nSostennos la mano, Señor.\nQue nuestra voz brille en verdad.\n\n2. Ayuda a tu pueblo valiente\na nunca dejar tu labor.\nPor más que gobierne la muerte,\npondremos en alto tu honor.\nNos quieres con vida y sanos,\nnos cuidas con tierno candor.\n\n(Estribillo)` },
+          's5': { title: '89. Te ruego, oye mi oración', text: `1. Oh, mi Señor, creador universal,\nescucha hoy mi ruego, por favor.\nConoces bien mi alma y mi pesar,\nno quiero nunca herir tu corazón.\n\n(ESTRIBILLO)\nOye mi voz, mi oración, Jehová.\nGuía mis pasos en tu caminar.\nQue mi sendero vaya tras la paz,\ny a tu lado yo me mantendré capaz.\n\n2. El enemigo quiere verme caer,\ntentaciones me asechan sin piedad.\nMas con tu espíritu me sostendré,\ntu amor será mi eterna libertad.\n\n(Estribillo)` },
+          's10': { title: '51. Estamos dedicados a Dios', text: `1. Jehová nos atrajo a Jesús con amor.\nA él seguiremos desde hoy.\nCuando la verdad de Dios\nnos llegó al corazón,\ndecidimos prometer\nservir a Dios con gran fe.\n\n(ESTRIBILLO)\nLa vida le hemos dedicado a Dios.\nFelices tomamos la decisión.\n\n2. Dijimos en una oración especial:\n"Por siempre te serviré, Jehová".\nOh, qué gran felicidad\nes hacer su voluntad,\nsu gobierno proclamar,\nsu santo nombre llevar.\n\n(Estribillo)` },
+          's12': { title: '125. "Felices los que tienen misericordia"', text: `1. Jehová es el Dios de inmensa compasión,\nconoce muy bien a su gran creación.\nSu misericordia perdura en honor,\nperdona los fallos de su siervo menor.\n\n(ESTRIBILLO)\nFelices los que a otros perdonan,\nque cubren faltas con gran amor.\nLa misma gracia que a otros donan,\nles dará el Gran Creador.\n\n2. El mundo hoy vive en odio y rencor,\nmas nosotros debemos mostrar el favor.\nTratando a todos con franca bondad,\nimitaremos la gran santidad.\n\n(Estribillo)` },
+          's14': { title: '81. La vida de un precursor', text: `1. Qué linda es la vida sirviendo a Jehová.\nA todos llevamos consuelo y paz.\nHablando del Reino, logramos llevar\nlas buenas noticias que habrán de llegar.\n\n(ESTRIBILLO)\nSer un precursor es mi vida.\nHablar de tu Reino es honor.\nEnseñar a la gente perdida,\nes algo que me llena de amor.\n\n2. Mis horas, mi esfuerzo, le entrego al Señor.\nYo sé que él aprecia mi humilde labor.\nAmigos sinceros yo pude encontrar,\nsirviendo unidos con mismo afán.\n\n(Estribillo)` },
+          's17': { title: '21. "Danos valor"', text: `1. Oh, Padre, hay tantas aflicciones.\nEl mundo nos quiere asustar.\nVivimos en tiempos difíciles,\nno nos queremos callar.\nA veces sentimos que el miedo\nnos nubla el camino a seguir.\n\n(ESTRIBILLO)\nDanos valor, Jehová,\ndanos el pecho para aguantar.\nSostennos la mano, Señor.\nQue nuestra voz brille en verdad.\n\n2. Ayuda a tu pueblo valiente\na nunca dejar tu labor.\nPor más que gobierne la muerte,\npondremos en alto tu honor.\nNos quieres con vida y sanos,\nnos cuidas con tierno candor.\n\n(Estribillo)` },
           'd2': { title: '68. Sigamos el ejemplo del Sembrador', text: `1. Jesús nos enseñó\nque la semilla de verdad\nrequiere tiempo y mucho amor\npara echar raíz sin cesar.\nPor campos trabajamos ya,\nregando toda gran región,\nasí el reino ha de brotar.\n\n(ESTRIBILLO)\nSigamos con firmeza a nuestro Sembrador.\nQue caiga la semilla donde brinde su valor.\nLa lluvia del cielo regará el corazón,\ny el fruto que dará será gran bendición.\n\n2. No todos escuchan, lo sabemos bien.\nMas nunca el gozo se ha de perder.\nHabrá tierra buena, habrá quien nos ve,\nJehová dará fuerzas a quien no se rinde jamás.\n\n(Estribillo)` },
           'd4': { title: '64. Hagamos tu voluntad', text: `1. Qué gran privilegio, Señor Jehová,\npoder tus mensajes de amor anunciar.\nLlevar a la gente tu bella verdad,\ny así tu santísimo nombre alabar.\n\n(ESTRIBILLO)\nHacer tu gran voluntad,\nese es mi mayor deseo, Jehová.\nPredicar en toda ciudad,\nservirte hasta la eternidad.\n\n2. Tu espíritu santo nos da el poder\npara al enemigo lograr someter.\nEl Reino triunfante pronto ha de nacer,\ny todo este mundo tu gloria ha de ver.\n\n(Estribillo)` },
           'd7': { title: '140. Su recompensa es inmensa', text: `1. Qué hermoso es servir, qué noble misión,\nllevando verdades con fiel corazón.\nLa gente nos oye, logramos cambiar\nsus vidas oscuras a luz celestial.\n\n(ESTRIBILLO)\nInmensa será tu gran recompensa,\ntu obra no quedará sin notar.\nSigue con gozo en esta contienda,\nel premio de Dios pronto ha de brillar.\n\n2. Jehova no olvida tu fiel trabajar.\nPor más que te canses, no dejes de orar.\nSus ángeles santos guiando estarán\nlos pasos del manso que ansía obrar.\n\n(Estribillo)` },
           'd9': { title: '108. Alaba a Jehová, oh, alma mía', text: `1. Alaba a Jehová con fuerza,\ncelebra su majestad.\nSus obras son tan grandiosas,\nsu gloria es la verdad.\nTe libró del pozo oscuro,\nte brindó su compasión.\n\n(ESTRIBILLO)\nOh, alma mía, cántale,\noh, corazón, adórale.\nBendice a Jehová hoy siempre,\nagradece su gran don.\n\n2. Recuerda que él es piadoso,\nconoce de qué estás hecho.\nRecuerda que eres de polvo,\nJehová es tu único techo.\nÉl guarda tu vida entera,\nsu gracia te librará.\n\n(Estribillo)` },
           'd11': { title: '120. Escucha, obedece y serás bendecido', text: `1. Escucha atentamente la voz del Creador.\nObedecer sus leyes te salva del dolor.\nJesús dejó el modelo que hay que seguir hoy,\nandemos en sus pasos con gozo y con fervor.\n\n(ESTRIBILLO)\nEscucha y obedece,\nJehová te premiará.\nSu brazo te protege,\nsu luz te alumbrará.\n\n2. Un hombre construía su casa en la arena,\ncayó la tempestad, sufriendo grande pena.\nMas otro con cautela construyó sobre roca,\nsalvó su propia vida y cerró a otros la boca.\n\n(Estribillo)` },
-          'd13': { title: '163. A ti te debo la vida', text: `1. Te debo cada latido, mi Creador Jehová.\nLa forma en la que respiro y cómo veo el mar.\nTe debo todas las noches y la inmensidad.\nMas sobre todo te debo, tener la gran verdad.\n\n(ESTRIBILLO)\nTe debo, mi Dios, la vida y el alma entera.\nServir es mi recompensa primera.\nEntregar mi fuerza, cantar en la esfera.\nA ti te debo, Jehová, mi primavera.\n\n2. Compraste hoy mis pecados mediante Jesús.\nMoriste por este esclavo de poca virtud.\nMi gratitud va más allá de esta canción.\nAcepta de forma humilde hoy mi dedicación.\n\n(Estribillo)` }
+          'd14': { title: '163. A ti te debo la vida', text: `1. Te debo cada latido, mi Creador Jehová.\nLa forma en la que respiro y cómo veo el mar.\nTe debo todas las noches y la inmensidad.\nMas sobre todo te debo, tener la gran verdad.\n\n(ESTRIBILLO)\nTe debo, mi Dios, la vida y el alma entera.\nServir es mi recompensa primera.\nEntregar mi fuerza, cantar en la esfera.\nA ti te debo, Jehová, mi primavera.\n\n2. Compraste hoy mis pecados mediante Jesús.\nMoriste por este esclavo de poca virtud.\nMi gratitud va más allá de esta canción.\nAcepta de forma humilde hoy mi dedicación.\n\n(Estribillo)` }
         };
 
         const program = {
@@ -148,7 +168,7 @@
             { id: 'd7', time: '12:10', title: 'Canción 140 e intermedio', type: 'song' },
             { id: 'd8', time: '1:35', title: 'Video musical', type: 'music' },
             { id: 'd9', time: '1:45', title: 'Canción 108', type: 'song' },
-            { id: 'd10', time: '1:50', title: 'PRODUCCIÓN AUDIOVISUAL: Las buenas noticias según Jesús: Episodio 6 "¿Eres tú el que tiene que venir?"', type: 'talk' },
+            { id: 'd10', time: '1:50', title: 'PRODUCCIÓN AUDIOVISUAL: Las buenas noticias según Jesús: Episodio 6', type: 'talk' },
             { id: 'd11', time: '2:35', title: 'Canción 120 y anuncios', type: 'song' },
             { id: 'd12', time: '2:45', title: '¿Qué hemos aprendido?', type: 'talk' },
             { id: 'd13', time: '2:55', title: '"Felices los ojos de ustedes, que ven"', type: 'talk' },
@@ -157,27 +177,8 @@
         };
 
         // ==========================================
-        // CONFIGURACIÓN DE FIREBASE (¡Reemplazar esto!)
+        // COMPONENTE PRINCIPAL REACT
         // ==========================================
-        // Aquí debes pegar la configuración que te da Firebase al crear tu proyecto web.
-        const firebaseConfigLocal = {
-            apiKey: "PEGA_TU_API_KEY_AQUI",
-            authDomain: "PEGA_TU_PROYECTO.firebaseapp.com",
-            projectId: "PEGA_TU_PROYECTO",
-            storageBucket: "PEGA_TU_PROYECTO.appspot.com",
-            messagingSenderId: "PEGA_TU_SENDER_ID",
-            appId: "PEGA_TU_APP_ID"
-        };
-        
-        // (Lógica interna para mantener compatibilidad, no hace falta tocarla)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigLocal;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-asamblea-app';
-        
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-
         function App() {
           const [isDbReady, setIsDbReady] = useState(false);
           const [currentScreen, setCurrentScreen] = useState('login');
@@ -199,46 +200,37 @@
           const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
           const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-          // 1. Inicializar Firebase Auth al cargar la app
+          // 1. Iniciar sesión de forma anónima en Firebase al cargar
           useEffect(() => {
-            const initAuth = async () => {
-              try {
-                if (typeof __initial_auth_token !== 'undefined') {
-                  await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                  await signInAnonymously(auth);
-                }
-                setIsDbReady(true);
-              } catch (error) {
-                console.error("Error autenticando con Firebase:", error);
-                setLoginError("Error conectando a la base de datos.");
-              }
-            };
-            initAuth();
+            signInAnonymously(auth).then(() => {
+              setIsDbReady(true);
+            }).catch((error) => {
+              console.error("Error conectando a Firebase Auth:", error);
+              setLoginError("Error conectando a la base de datos.");
+            });
           }, []);
 
-          // 2. Auto-guardado de notas (con un pequeño retraso para no saturar Firebase)
+          // 2. Auto-guardado de notas en Firebase (con debounce de 1.5s)
           useEffect(() => {
             if (!currentUser || !isDbReady) return;
             
             const timeoutId = setTimeout(async () => {
               try {
-                const notesRef = doc(db, 'artifacts', appId, 'public', 'data', 'appNotes', currentUser.username);
+                const notesRef = doc(db, 'notes', currentUser.username);
                 await setDoc(notesRef, { notes, fontSize }, { merge: true });
               } catch (err) {
                 console.error("Error guardando en Firebase", err);
               }
-            }, 1000); // Guarda 1 segundo después de dejar de escribir
+            }, 1500);
             
             return () => clearTimeout(timeoutId);
           }, [notes, fontSize, currentUser, isDbReady]);
 
-          // ================= LOGICA FIREBASE =================
+          // ================= LÓGICA DE FIREBASE =================
 
-          // Cargar usuarios para el panel admin
           const loadAllUsers = async () => {
             try {
-              const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'appUsers');
+              const usersRef = collection(db, 'users');
               const snap = await getDocs(usersRef);
               const loadedUsers = [];
               snap.forEach(doc => {
@@ -250,8 +242,8 @@
             }
           };
 
-          // Función de Inicio de Sesión
-          const handleLogin = async () => {
+          const handleLogin = async (e) => {
+            e.preventDefault();
             if (!loginForm.username || !loginForm.password || !isDbReady) return;
             setIsLoggingIn(true);
             setLoginError('');
@@ -259,7 +251,7 @@
             const uname = loginForm.username.toLowerCase().trim();
             
             try {
-              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', uname);
+              const userRef = doc(db, 'users', uname);
               const userSnap = await getDoc(userRef);
 
               if (userSnap.exists()) {
@@ -275,7 +267,7 @@
                   setLoginError('Contraseña incorrecta.');
                 }
               } else {
-                // Si el usuario "admin" no existe (primera vez usando la app), crearlo.
+                // Si el usuario "admin" no existe (primer uso), lo creamos
                 if (uname === 'admin' && loginForm.password === 'admin56') {
                   await setDoc(userRef, { password: 'admin56', role: 'admin' });
                   setCurrentUser({ username: 'admin', role: 'admin' });
@@ -291,10 +283,9 @@
             setIsLoggingIn(false);
           };
 
-          // Cargar notas del usuario logueado
           const loadUserNotes = async (uname) => {
             try {
-              const notesRef = doc(db, 'artifacts', appId, 'public', 'data', 'appNotes', uname);
+              const notesRef = doc(db, 'notes', uname);
               const notesSnap = await getDoc(notesRef);
               if (notesSnap.exists()) {
                 const data = notesSnap.data();
@@ -309,8 +300,8 @@
             }
           };
 
-          // Crear un usuario nuevo (Admin)
-          const handleCreateUser = async () => {
+          const handleCreateUser = async (e) => {
+            e.preventDefault();
             setAdminMessage({ type: '', text: '' });
             if (!newUserForm.username || !newUserForm.password || !isDbReady) return;
             setIsCreatingUser(true);
@@ -318,7 +309,7 @@
             const uname = newUserForm.username.toLowerCase().trim();
             
             try {
-              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', uname);
+              const userRef = doc(db, 'users', uname);
               const userSnap = await getDoc(userRef);
               
               if (userSnap.exists()) {
@@ -327,7 +318,7 @@
                 await setDoc(userRef, { password: newUserForm.password, role: 'user' });
                 setAdminMessage({ type: 'success', text: 'Usuario creado con éxito.' });
                 setNewUserForm({ username: '', password: '' });
-                loadAllUsers(); // Refrescar la lista visible
+                loadAllUsers(); // Refrescar la lista
               }
             } catch (err) {
               setAdminMessage({ type: 'error', text: 'Error al conectar con la nube.' });
@@ -410,6 +401,7 @@
             document.body.appendChild(script);
           };
 
+          // --- PANTALLA: LOGIN ---
           if (currentScreen === 'login') {
             return (
               <div className="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden bg-slate-100">
@@ -428,7 +420,7 @@
                         <span className="font-semibold text-sm">Conectando a Firebase...</span>
                       </div>
                     ) : (
-                      <div className="space-y-5">
+                      <form onSubmit={handleLogin} className="space-y-5">
                         {loginError && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center border border-red-200">{loginError}</div>}
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-1">Usuario</label>
@@ -446,10 +438,10 @@
                             className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-slate-50"
                           />
                         </div>
-                        <button onClick={handleLogin} disabled={isLoggingIn} className="w-full bg-sky-700 text-white font-bold py-3 rounded-lg hover:bg-sky-800 transition-colors shadow-md mt-2 flex justify-center items-center disabled:opacity-70">
+                        <button type="submit" disabled={isLoggingIn} className="w-full bg-sky-700 text-white font-bold py-3 rounded-lg hover:bg-sky-800 transition-colors shadow-md mt-2 flex justify-center items-center disabled:opacity-70">
                           {isLoggingIn ? <Loader2 className="animate-spin" size={20} /> : 'Ingresar'}
                         </button>
-                      </div>
+                      </form>
                     )}
                   </div>
                 </div>
@@ -457,6 +449,7 @@
             );
           }
 
+          // --- PANTALLA: ADMIN ---
           if (currentScreen === 'admin') {
             return (
               <div className="min-h-screen bg-slate-100 p-4 pb-20">
@@ -488,7 +481,7 @@
                         </div>
                       )}
                       
-                      <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
+                      <form onSubmit={handleCreateUser} className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre de usuario</label>
@@ -507,10 +500,10 @@
                             />
                           </div>
                         </div>
-                        <button onClick={handleCreateUser} disabled={isCreatingUser} className="w-full bg-slate-700 text-white font-bold py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex justify-center disabled:opacity-70">
+                        <button type="submit" disabled={isCreatingUser} className="w-full bg-slate-700 text-white font-bold py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex justify-center disabled:opacity-70">
                           {isCreatingUser ? <Loader2 className="animate-spin" size={20} /> : 'Registrar en Nube'}
                         </button>
-                      </div>
+                      </form>
                     </div>
                     
                     <div className="p-6 border-t border-slate-100">
@@ -534,6 +527,7 @@
             );
           }
 
+          // --- PANTALLA: APP PRINCIPAL ---
           const renderNoteField = (id, placeholder = "Escribe tus apuntes aquí...") => (
             <div className="mt-3 relative">
               <textarea
