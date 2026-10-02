@@ -1,5 +1,5 @@
 ```javascript
-const CACHE_NAME = 'asamblea-pwa-v3';
+const CACHE_NAME = 'asamblea-pwa-v5';
 const urlsToCache = [
   './',
   './index.html',
@@ -7,33 +7,11 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  // Ya NO hacemos self.skipWaiting() aquí, porque queremos 
-  // controlar manualmente cuándo se instala la nueva versión
-  // a través del botón "Actualizar" en la App.
+  self.skipWaiting(); // Obliga a instalar la actualización inmediatamente
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
     })
-  );
-});
-
-self.addEventListener('fetch', event => {
-  if (event.request.url.includes('firestore.googleapis.com')) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request).then(fetchRes => {
-          return caches.open(CACHE_NAME).then(cache => {
-            if (event.request.url.startsWith(self.location.origin) && fetchRes.status === 200) {
-                cache.put(event.request, fetchRes.clone());
-            }
-            return fetchRes;
-          });
-        });
-      }).catch(() => {})
   );
 });
 
@@ -51,10 +29,29 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Escuchar mensaje desde la App (cuando el usuario toca el botón "Actualizar")
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+self.addEventListener('fetch', event => {
+  // Ignorar peticiones a Firebase
+  if (event.request.method !== 'GET' || event.request.url.includes('firestore.googleapis.com')) {
+    return;
   }
+
+  // ESTRATEGIA: Red Primero, Respaldo en Caché (Network First)
+  event.respondWith(
+    fetch(event.request)
+      .then(networkResponse => {
+        // Si hay internet y responde bien, mostramos la versión nueva y actualizamos el caché
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Si no hay internet, servimos la versión guardada en el celular
+        return caches.match(event.request);
+      })
+  );
 });
 ```
