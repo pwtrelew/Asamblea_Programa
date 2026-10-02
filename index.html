@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -55,13 +54,13 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Clock, BookOpen, Calendar, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2, Download } from 'lucide-react';
+        import { Clock, BookOpen, Calendar, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2, Download, Video } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE (¡Ya actualizada con tus datos!)
+        // CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCGWUJZCTBSQZKBqLS5YUoYk16CeospWqM",
             authDomain: "programa-asamblea.firebaseapp.com",
@@ -411,7 +410,6 @@
           };
 
           const handleNoteChange = (id, text) => {
-            // El formato de "Orador: " se mantiene exclusivo para los campos de notas de discursos
             if (!id.startsWith('attendance_') && !text.startsWith("Orador: ")) {
               text = "Orador: " + text.replace(/^Orador:\s*/, "");
             }
@@ -429,20 +427,51 @@
           const decreaseFontSize = () => setFontSize(prev => Math.max(prev - 2, 12));
 
           const renderAttendanceInput = (sessionType) => {
-            const id = `attendance_${activeTab}_${sessionType}`;
+            const idPresencial = `attendance_presencial_${activeTab}_${sessionType}`;
+            const idStream = `attendance_stream_${activeTab}_${sessionType}`;
+
+            const presencial = parseInt(notes[idPresencial]) || 0;
+            const stream = parseInt(notes[idStream]) || 0;
+            const total = presencial + stream;
+
             return (
-              <div className={`mt-6 mb-2 bg-white rounded-xl p-4 shadow-sm border ${currentTheme.border} flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                  <Users size={18} className={currentTheme.icon} />
-                  <span className="font-bold text-slate-700 text-sm">Asistencia total ({sessionType === 'manana' ? 'Mañana' : 'Tarde'}):</span>
+              <div className={`mt-6 mb-2 bg-white rounded-2xl p-5 shadow-sm border ${currentTheme.border}`}>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Users size={20} className={currentTheme.icon} />
+                    <span className="font-bold text-slate-700">Asistencia ({sessionType === 'manana' ? 'Mañana' : 'Tarde'})</span>
+                  </div>
+                  <div className={`font-black text-lg ${total > 0 ? currentTheme.text : 'text-slate-300'}`}>
+                    Total: {total}
+                  </div>
                 </div>
-                <input
-                  type="number"
-                  value={notes[id] || ''}
-                  onChange={(e) => setNotes(prev => ({ ...prev, [id]: e.target.value }))}
-                  className={`w-24 p-2 border border-slate-300 rounded-lg text-center font-bold text-slate-700 focus:ring-2 ${currentTheme.ring} focus:outline-none bg-slate-50`}
-                  placeholder="Ej. 1200"
-                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col items-center">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Users size={12}/> Presencial
+                    </label>
+                    <input
+                      type="number"
+                      value={notes[idPresencial] || ''}
+                      onChange={(e) => setNotes(prev => ({ ...prev, [idPresencial]: e.target.value }))}
+                      className={`w-full p-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-700 text-lg focus:ring-2 ${currentTheme.ring} focus:outline-none bg-white shadow-sm`}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col items-center">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Video size={12}/> JW Stream
+                    </label>
+                    <input
+                      type="number"
+                      value={notes[idStream] || ''}
+                      onChange={(e) => setNotes(prev => ({ ...prev, [idStream]: e.target.value }))}
+                      className={`w-full p-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-700 text-lg focus:ring-2 ${currentTheme.ring} focus:outline-none bg-white shadow-sm`}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
               </div>
             );
           };
@@ -491,16 +520,30 @@
                     }
 
                     // Insertar asistencias en el PDF si existen
-                    if (isLastMorningItem && notes[`attendance_${tab}_manana`]) {
-                        sectionHtml += `<div style="text-align: right; font-weight: bold; color: ${color}; margin-top: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 8px;">Asistencia Mañana: ${notes[`attendance_${tab}_manana`]}</div>`;
-                        sectionHasNotes = true;
-                        hasNotes = true;
-                    }
-                    if (isLastAfternoonItem && notes[`attendance_${tab}_tarde`]) {
-                        sectionHtml += `<div style="text-align: right; font-weight: bold; color: ${color}; margin-top: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 8px;">Asistencia Tarde: ${notes[`attendance_${tab}_tarde`]}</div>`;
-                        sectionHasNotes = true;
-                        hasNotes = true;
-                    }
+                    const addAttendanceToPdf = (session, label) => {
+                        const presencial = parseInt(notes[`attendance_presencial_${tab}_${session}`]) || 0;
+                        const stream = parseInt(notes[`attendance_stream_${tab}_${session}`]) || 0;
+                        const total = presencial + stream;
+                        
+                        if (presencial > 0 || stream > 0) {
+                            sectionHtml += `
+                            <div style="margin-top: 20px; padding: 15px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid ${color};">
+                                <h4 style="color: ${color}; margin: 0 0 10px 0; font-size: 14px;">Asistencia ${label}</h4>
+                                <table style="width: 100%; font-size: 14px; color: #334155;">
+                                    <tr>
+                                        <td>Presencial: <strong>${presencial}</strong></td>
+                                        <td>JW Stream: <strong>${stream}</strong></td>
+                                        <td style="text-align: right;">Total: <strong style="color: ${color}; font-size: 15px;">${total}</strong></td>
+                                    </tr>
+                                </table>
+                            </div>`;
+                            sectionHasNotes = true;
+                            hasNotes = true;
+                        }
+                    };
+
+                    if (isLastMorningItem) addAttendanceToPdf('manana', 'Mañana');
+                    if (isLastAfternoonItem) addAttendanceToPdf('tarde', 'Tarde');
                   });
                 }
 
@@ -761,7 +804,6 @@
                     const isLastMorningItem = index < program[activeTab].length - 1 && program[activeTab][index + 1].time === '1:35';
                     const isLastAfternoonItem = index === program[activeTab].length - 1;
 
-                    // Parsear el título para separar el texto bíblico si existe (al final, entre paréntesis)
                     const titleMatch = item.title.match(/^(.*?)\s*(\(.*?\))?$/);
                     const mainTitle = titleMatch ? titleMatch[1] : item.title;
                     const bibleRef = titleMatch && titleMatch[2] ? titleMatch[2] : null;
@@ -909,4 +951,3 @@
     </script>
 </body>
 </html>
-```
