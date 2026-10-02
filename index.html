@@ -704,13 +704,19 @@
                 onFocus={() => handleNoteFocus(id)}
                 onChange={(e) => {
                   handleNoteChange(id, e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
+                  // Eliminado el recálculo que causaba el salto (auto).
+                  // Ahora solo crece de manera fluida si supera su tamaño.
+                  if (e.target.scrollHeight > e.target.offsetHeight) {
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                  }
                 }}
                 ref={(el) => {
-                  if (el) {
-                    el.style.height = 'auto';
-                    el.style.height = el.scrollHeight + 'px';
+                  // Configuramos la altura correcta al cargar la app una sola vez
+                  if (el && !el.dataset.resized) {
+                      if (el.scrollHeight > el.clientHeight) {
+                          el.style.height = el.scrollHeight + 'px';
+                      }
+                      el.dataset.resized = "true";
                   }
                 }}
               />
