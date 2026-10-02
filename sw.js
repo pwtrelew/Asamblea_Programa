@@ -1,4 +1,5 @@
-const CACHE_NAME = 'asamblea-pwa-v9';
+```javascript
+const CACHE_NAME = 'asamblea-pwa-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,17 +7,17 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Fuerza a que el SW nuevo tome el control
+  // Ya NO hacemos self.skipWaiting() aquí, porque queremos 
+  // controlar manualmente cuándo se instala la nueva versión
+  // a través del botón "Actualizar" en la App.
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
+    })
   );
 });
 
 self.addEventListener('fetch', event => {
-  // Ignorar peticiones a Firestore (Firebase) para no trabar la base de datos
   if (event.request.url.includes('firestore.googleapis.com')) {
     return;
   }
@@ -26,16 +27,13 @@ self.addEventListener('fetch', event => {
       .then(response => {
         return response || fetch(event.request).then(fetchRes => {
           return caches.open(CACHE_NAME).then(cache => {
-            // Solo cachéame si la petición es local y exitosa
             if (event.request.url.startsWith(self.location.origin) && fetchRes.status === 200) {
                 cache.put(event.request, fetchRes.clone());
             }
             return fetchRes;
           });
         });
-      }).catch(() => {
-        // Fallback genérico offline
-      })
+      }).catch(() => {})
   );
 });
 
@@ -49,6 +47,14 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    }).then(() => self.clients.claim()) // Reclama el control de las ventanas activas
+    }).then(() => self.clients.claim())
   );
 });
+
+// Escuchar mensaje desde la App (cuando el usuario toca el botón "Actualizar")
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+```
