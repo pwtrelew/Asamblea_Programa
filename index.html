@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Asamblea 2026 - Felices para siempre</title>
     
     <!-- Configuración PWA -->
@@ -31,9 +31,14 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        html, body { height: 100%; width: 100%; }
         body { 
             -webkit-tap-highlight-color: transparent; 
             overscroll-behavior-y: none;
+            scroll-behavior: smooth;
+        }
+        @supports (-webkit-touch-callout: none) {
+            body { min-height: -webkit-fill-available; }
         }
     </style>
 </head>
@@ -41,12 +46,33 @@
     
     <div id="root"></div>
 
+    <!-- Lógica de registro del Service Worker y Detección de Actualizaciones -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('SW registrado correctamente', reg.scope))
+            .then(reg => {
+              // Detectar cuando hay una nueva versión esperando para instalarse
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // Disparar un evento para que React muestre el botón de "Actualizar"
+                    window.dispatchEvent(new CustomEvent('swUpdated', { detail: reg }));
+                  }
+                });
+              });
+            })
             .catch(err => console.error('Error al registrar SW', err));
+        });
+
+        // Cuando el Service Worker se actualice, recargar la página
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
         });
       }
     </script>
@@ -54,7 +80,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Clock, BookOpen, Calendar, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2, Download, Video } from 'lucide-react';
+        import { Clock, BookOpen, Calendar, ChevronDown, ChevronUp, MoreVertical, FileText, Type, Users, LogOut, ArrowLeft, UserPlus, Loader2, Download, Video, Info } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -79,34 +105,13 @@
             console.error("Error al inicializar Firebase:", error);
         }
 
-        const songLyrics = {
-          'v2': { title: '160. Ya veo a mi nuevo yo', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'v5': { title: '17. "Quiero"', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'v7': { title: '14. Alabemos al Rey de la eternidad', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'v9': { title: '23. Jehová da fuerzas', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'v12': { title: '76. ¿Cómo te sientes al ver el final?', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'v14': { title: '155. ¡Feliz día!', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's2': { title: '111. "Llamará"', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's5': { title: '89. Te ruego, oye mi oración', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's10': { title: '51. Estamos dedicados a Dios', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's12': { title: '125. "Felices los que tienen misericordia"', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's14': { title: '81. La vida de un precursor', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          's17': { title: '21. "Danos valor"', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd2': { title: '68. Sigamos el ejemplo del Sembrador', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd4': { title: '64. Hagamos tu voluntad', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd7': { title: '140. Su recompensa es inmensa', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd9': { title: '108. Alaba a Jehová, oh, alma mía', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd11': { title: '120. Escucha, obedece y serás bendecido', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` },
-          'd14': { title: '163. A ti te debo la vida', text: `(Letra omitida por motivos de derechos de autor. Puedes buscar la letra completa en jw.org.)` }
-        };
-
         const program = {
           viernes: [
             { id: 'v1', time: '9:20', title: 'Video musical', type: 'music' },
-            { id: 'v2', time: '9:30', title: 'Canción 160 y oración', type: 'song' },
+            { id: 'v2', time: '9:30', title: 'Canción 160 y oración', type: 'info' },
             { id: 'v3', time: '9:40', title: 'DISCURSO DEL PRESIDENTE DE LA ASAMBLEA: ¿Es realista la idea de ser felices para siempre? (Salmo 16:11; 100:2)', type: 'talk' },
             { id: 'v4', time: '10:10', title: 'PRODUCCIÓN AUDIOVISUAL: Las buenas noticias según Jesús: Episodio 4 "Para eso he venido" (Mateo 4:23-25; 8:1-4, 14-17; 9:1-17; 12:1-21; Marcos 1:21-3:19; Lucas 4:31-44; 5:12-6:16; Juan 5:1-47)', type: 'talk' },
-            { id: 'v5', time: '11:05', title: 'Canción 17 y anuncios', type: 'song' },
+            { id: 'v5', time: '11:05', title: 'Canción 17 y anuncios', type: 'info' },
             { id: 'v6', time: '11:15', title: 'SERIE DE DISCURSOS: ¡Las profecías sobre el Mesías se cumplieron!', type: 'symposium',
               parts: [
                 { id: 'v6-1', title: '• "Él mismo tomó nuestras enfermedades" (Mateo 8:16, 17; Salmo 32:1, 2; Isaías 53:4, 5)' },
@@ -114,9 +119,9 @@
                 { id: 'v6-3', title: '• "Nunca les hablaba sin utilizar alguna comparación" (Mateo 13:34, 35; Salmo 78:2)' }
               ]
             },
-            { id: 'v7', time: '12:10', title: 'Canción 14 e intermedio', type: 'song' },
+            { id: 'v7', time: '12:10', title: 'Canción 14 e intermedio', type: 'info' },
             { id: 'v8', time: '1:35', title: 'Video musical', type: 'music' },
-            { id: 'v9', time: '1:45', title: 'Canción 23', type: 'song' },
+            { id: 'v9', time: '1:45', title: 'Canción 23', type: 'info' },
             { id: 'v10', time: '1:50', title: '¿Qué enseñó Jesús sobre el sábado? (Mateo 12:1-14; Juan 5:1-17)', type: 'talk' },
             { id: 'v11', time: '2:10', title: 'SERIE DE DISCURSOS: Imitemos a los que sirvieron a Jesús', type: 'symposium',
               parts: [
@@ -124,16 +129,16 @@
                 { id: 'v11-2', title: '• Muchas mujeres (Mateo 27:55; Marcos 15:40; Lucas 8:1-3)' }
               ]
             },
-            { id: 'v12', time: '2:50', title: 'Canción 76 y anuncios', type: 'song' },
+            { id: 'v12', time: '2:50', title: 'Canción 76 y anuncios', type: 'info' },
             { id: 'v13', time: '3:00', title: '"Felices los que lavan sus túnicas largas" (Apocalipsis 7:9, 10, 13-15; 22:14; Juan 5:24-29)', type: 'talk' },
-            { id: 'v14', time: '3:30', title: 'Canción 155 y oración de conclusión', type: 'song' },
+            { id: 'v14', time: '3:30', title: 'Canción 155 y oración de conclusión', type: 'info' },
           ],
           sabado: [
             { id: 's1', time: '9:20', title: 'Video musical', type: 'music' },
-            { id: 's2', time: '9:30', title: 'Canción 111 y oración', type: 'song' },
+            { id: 's2', time: '9:30', title: 'Canción 111 y oración', type: 'info' },
             { id: 's3', time: '9:40', title: '"Él tomó la palabra y se puso a enseñarles" (Mateo 5:1, 2)', type: 'talk' },
             { id: 's4', time: '9:50', title: 'PRODUCCIÓN AUDIOVISUAL: Las buenas noticias según Jesús: Episodio 5 Impactados con su manera de enseñar (Mateo 5:3-7:29; Lucas 6:17-49)', type: 'talk' },
-            { id: 's5', time: '10:25', title: 'Canción 89 y anuncios', type: 'song' },
+            { id: 's5', time: '10:25', title: 'Canción 89 y anuncios', type: 'info' },
             { id: 's6', time: '10:35', title: 'Cuatro enemigos de la felicidad (Lucas 6:24-26)', type: 'talk' },
             { id: 's7', time: '10:50', title: '¿Puede ver el principio detrás de la ley? (Mateo 5:17-48)', type: 'talk' },
             { id: 's8', time: '11:15', title: 'SERIE DE DISCURSOS: Lecciones sobre la tierra en la que vivió Jesús', type: 'symposium',
@@ -143,9 +148,9 @@
               ]
             },
             { id: 's9', time: '11:40', title: 'DISCURSO DE BAUTISMO: "Tu Padre, que mira en secreto, te lo pagará" (Mateo 6:6)', type: 'talk' },
-            { id: 's10', time: '12:10', title: 'Canción 51 e intermedio', type: 'song' },
+            { id: 's10', time: '12:10', title: 'Canción 51 e intermedio', type: 'info' },
             { id: 's11', time: '1:35', title: 'Video musical', type: 'music' },
-            { id: 's12', time: '1:45', title: 'Canción 125', type: 'song' },
+            { id: 's12', time: '1:45', title: 'Canción 125', type: 'info' },
             { id: 's13', time: '1:50', title: 'SERIE DE DISCURSOS: Felices...', type: 'symposium',
               parts: [
                 { id: 's13-1', title: '• los que reconocen sus necesidades espirituales (Mateo 5:3)' },
@@ -159,14 +164,14 @@
                 { id: 's13-9', title: '• ustedes cuando la gente los insulte (Mateo 5:11, 12)' }
               ]
             },
-            { id: 's14', time: '3:20', title: 'Canción 81 y anuncios', type: 'song' },
+            { id: 's14', time: '3:20', title: 'Canción 81 y anuncios', type: 'info' },
             { id: 's15', time: '3:30', title: '¿Por qué se angustian? (Mateo 6:19-33)', type: 'talk' },
             { id: 's16', time: '3:55', title: '"Entren por la puerta angosta" (Mateo 7:1-5, 12-14, 16-18, 24-27)', type: 'talk' },
-            { id: 's17', time: '4:30', title: 'Canción 21 y oración de conclusión', type: 'song' }
+            { id: 's17', time: '4:30', title: 'Canción 21 y oración de conclusión', type: 'info' }
           ],
           domingo: [
             { id: 'd1', time: '9:20', title: 'Video musical', type: 'music' },
-            { id: 'd2', time: '9:30', title: 'Canción 68 y oración', type: 'song' },
+            { id: 'd2', time: '9:30', title: 'Canción 68 y oración', type: 'info' },
             { id: 'd3', time: '9:40', title: 'SERIE DE DISCURSOS: Lecciones de las comparaciones de Jesús', type: 'symposium',
               parts: [
                 { id: 'd3-1', title: '• Los cuatro tipos de terreno (Mateo 13:18-23)' },
@@ -176,17 +181,17 @@
                 { id: 'd3-5', title: '• La red de pesca (Mateo 13:47-50)' }
               ]
             },
-            { id: 'd4', time: '11:00', title: 'Canción 64 y anuncios', type: 'song' },
+            { id: 'd4', time: '11:00', title: 'Canción 64 y anuncios', type: 'info' },
             { id: 'd5', time: '11:10', title: 'DISCURSO PÚBLICO: ¿Ha encontrado el tesoro? (Mateo 13:44-46)', type: 'talk' },
             { id: 'd6', time: '11:40', title: 'Resumen de La Atalaya', type: 'summary' },
-            { id: 'd7', time: '12:10', title: 'Canción 140 e intermedio', type: 'song' },
+            { id: 'd7', time: '12:10', title: 'Canción 140 e intermedio', type: 'info' },
             { id: 'd8', time: '1:35', title: 'Video musical', type: 'music' },
-            { id: 'd9', time: '1:45', title: 'Canción 108', type: 'song' },
+            { id: 'd9', time: '1:45', title: 'Canción 108', type: 'info' },
             { id: 'd10', time: '1:50', title: 'PRODUCCIÓN AUDIOVISUAL: Las buenas noticias según Jesús: Episodio 6 "¿Eres tú el que tiene que venir?" (Mateo 8:5-13; 11:2-30; 12:22-13:53; Marcos 3:19-4:34; Lucas 7:1-8:21)', type: 'talk' },
-            { id: 'd11', time: '2:35', title: 'Canción 120 y anuncios', type: 'song' },
+            { id: 'd11', time: '2:35', title: 'Canción 120 y anuncios', type: 'info' },
             { id: 'd12', time: '2:45', title: '¿Qué hemos aprendido?', type: 'talk' },
             { id: 'd13', time: '2:55', title: '"Felices los ojos de ustedes, que ven" (Mateo 7:1-5; 13:16, 17; Lucas 6:46-49; 10:21; Juan 17:6; Santiago 1:22-25)', type: 'talk' },
-            { id: 'd14', time: '3:45', title: 'Canción 163 y oración de conclusión', type: 'song' }
+            { id: 'd14', time: '3:45', title: 'Canción 163 y oración de conclusión', type: 'info' }
           ]
         };
 
@@ -211,8 +216,10 @@
           const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
           const [isCreatingUser, setIsCreatingUser] = useState(false);
 
+          // PWA Install / Update States
           const [deferredPrompt, setDeferredPrompt] = useState(null);
           const [isInstallable, setIsInstallable] = useState(false);
+          const [updateAvailable, setUpdateAvailable] = useState(null);
 
           const themeColors = {
             viernes: {
@@ -234,6 +241,21 @@
 
           const currentTheme = themeColors[activeTab] || themeColors['viernes'];
 
+          // Escuchar eventos de actualización de la App
+          useEffect(() => {
+            const handler = (e) => setUpdateAvailable(e.detail);
+            window.addEventListener('swUpdated', handler);
+            return () => window.removeEventListener('swUpdated', handler);
+          }, []);
+
+          const handleUpdateApp = () => {
+            if (updateAvailable && updateAvailable.waiting) {
+              // Le dice al Service Worker que se salte la espera y actualice
+              updateAvailable.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          };
+
+          // Inicializar Firebase
           useEffect(() => {
             if (!auth) {
                 setLoginError("Error interno: Firebase no está configurado.");
@@ -242,7 +264,6 @@
             signInAnonymously(auth).then(() => {
               setIsDbReady(true);
             }).catch((error) => {
-              console.error("Error Firebase Auth:", error);
               setLoginError("Error conectando a la base de datos.");
             });
           }, []);
@@ -259,13 +280,13 @@
                               setCurrentScreen('main');
                           });
                       } catch (e) {
-                          console.error("Error parsing saved session", e);
                           localStorage.removeItem('asamblea-session');
                       }
                   }
               }
           }, [isDbReady]);
 
+          // Escuchar botón de instalación nativo
           useEffect(() => {
             const handler = (e) => {
               e.preventDefault();
@@ -273,9 +294,7 @@
               setIsInstallable(true);
             };
             window.addEventListener('beforeinstallprompt', handler);
-            window.addEventListener('appinstalled', () => {
-              setIsInstallable(false);
-            });
+            window.addEventListener('appinstalled', () => setIsInstallable(false));
             return () => window.removeEventListener('beforeinstallprompt', handler);
           }, []);
 
@@ -294,9 +313,7 @@
               try {
                 const notesRef = doc(db, 'notes', currentUser.username);
                 await setDoc(notesRef, { notes, fontSize }, { merge: true });
-              } catch (err) {
-                console.error("Error guardando:", err);
-              }
+              } catch (err) {}
             }, 1500);
             return () => clearTimeout(timeoutId);
           }, [notes, fontSize, currentUser, isDbReady]);
@@ -311,9 +328,7 @@
                 loadedUsers.push({ username: document.id, role: document.data().role });
               });
               setUsersDB(loadedUsers);
-            } catch (err) {
-              console.error("Error cargando usuarios:", err);
-            }
+            } catch (err) {}
           };
 
           // Lógica de inicio de sesión sin contraseña
@@ -416,15 +431,22 @@
             setNotes(prev => ({ ...prev, [id]: text }));
           };
 
-          const handleNoteFocus = (id) => {
+          const handleNoteFocus = (id, event) => {
              if (!id.startsWith('attendance_') && (!notes[id] || notes[id].trim() === "")) {
                  handleNoteChange(id, "Orador: ");
              }
+             setTimeout(() => {
+                 const rect = event.target.getBoundingClientRect();
+                 const screenHeight = window.innerHeight;
+                 if (rect.bottom > screenHeight * 0.6) {
+                     event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                 }
+             }, 300);
           };
 
           const toggleItem = (id) => setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
-          const increaseFontSize = () => setFontSize(prev => Math.min(prev + 2, 32));
-          const decreaseFontSize = () => setFontSize(prev => Math.max(prev - 2, 12));
+          const increaseFontSize = () => setFontSize(prev => Math.min(prev + 32, 32)); // max 32
+          const decreaseFontSize = () => setFontSize(prev => Math.max(prev - 2, 12)); // min 12
 
           const renderAttendanceInput = (sessionType) => {
             const idPresencial = `attendance_presencial_${activeTab}_${sessionType}`;
@@ -455,6 +477,7 @@
                       type="number"
                       value={notes[idPresencial] || ''}
                       onChange={(e) => setNotes(prev => ({ ...prev, [idPresencial]: e.target.value }))}
+                      onFocus={(e) => handleNoteFocus(idPresencial, e)}
                       className={`w-full p-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-700 text-lg focus:ring-2 ${currentTheme.ring} focus:outline-none bg-white shadow-sm`}
                       placeholder="0"
                     />
@@ -467,6 +490,7 @@
                       type="number"
                       value={notes[idStream] || ''}
                       onChange={(e) => setNotes(prev => ({ ...prev, [idStream]: e.target.value }))}
+                      onFocus={(e) => handleNoteFocus(idStream, e)}
                       className={`w-full p-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-700 text-lg focus:ring-2 ${currentTheme.ring} focus:outline-none bg-white shadow-sm`}
                       placeholder="0"
                     />
@@ -519,7 +543,6 @@
                       });
                     }
 
-                    // Insertar asistencias en el PDF si existen
                     const addAttendanceToPdf = (session, label) => {
                         const presencial = parseInt(notes[`attendance_presencial_${tab}_${session}`]) || 0;
                         const stream = parseInt(notes[`attendance_stream_${tab}_${session}`]) || 0;
@@ -566,7 +589,7 @@
             };
             
             script.onerror = () => {
-                console.error("No se pudo cargar la librería html2pdf.");
+                console.error("No se pudo cargar html2pdf.");
                 setIsExporting(false);
             };
             
@@ -622,6 +645,22 @@
                     )}
                   </div>
                 </div>
+
+                {/* UPDATE BANNER FOR LOGIN SCREEN */}
+                {updateAvailable && (
+                  <div className="fixed bottom-6 left-4 right-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center z-[100] animate-in slide-in-from-bottom-5 max-w-md w-full mx-auto">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-emerald-500 p-2 rounded-full"><Download size={20} className="text-white" /></div>
+                      <div>
+                        <h3 className="font-bold text-sm">Nueva versión</h3>
+                        <p className="text-xs text-slate-300">Actualiza para ver los cambios.</p>
+                      </div>
+                    </div>
+                    <button onClick={handleUpdateApp} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-colors">
+                      Actualizar
+                    </button>
+                  </div>
+                )}
               </div>
             );
           }
@@ -701,17 +740,14 @@
                 style={{ fontSize: `${fontSize}px` }}
                 placeholder={placeholder}
                 value={notes[id] || ''}
-                onFocus={() => handleNoteFocus(id)}
+                onFocus={(e) => handleNoteFocus(id, e)}
                 onChange={(e) => {
                   handleNoteChange(id, e.target.value);
-                  // Eliminado el recálculo que causaba el salto (auto).
-                  // Ahora solo crece de manera fluida si supera su tamaño.
                   if (e.target.scrollHeight > e.target.offsetHeight) {
                       e.target.style.height = e.target.scrollHeight + 'px';
                   }
                 }}
                 ref={(el) => {
-                  // Configuramos la altura correcta al cargar la app una sola vez
                   if (el && !el.dataset.resized) {
                       if (el.scrollHeight > el.clientHeight) {
                           el.style.height = el.scrollHeight + 'px';
@@ -725,6 +761,23 @@
 
           return (
             <div className="min-h-screen bg-slate-100 text-slate-800 font-sans pb-20 relative">
+              
+              {/* UPDATE BANNER FOR MAIN SCREEN */}
+              {updateAvailable && (
+                <div className="fixed bottom-20 left-4 right-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center z-[100] animate-in slide-in-from-bottom-5 max-w-2xl mx-auto">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-emerald-500 p-2 rounded-full"><Download size={20} className="text-white" /></div>
+                    <div>
+                      <h3 className="font-bold text-sm">Nueva versión disponible</h3>
+                      <p className="text-xs text-slate-300">Toca el botón para actualizar.</p>
+                    </div>
+                  </div>
+                  <button onClick={handleUpdateApp} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-colors">
+                    Actualizar
+                  </button>
+                </div>
+              )}
+
               {isMenuOpen && <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
 
               <header className={`${currentTheme.main} text-white p-6 shadow-md rounded-b-2xl relative z-50 transition-colors duration-300`}>
@@ -844,11 +897,11 @@
                             </div>
                             <div className="flex-1">
                               <div 
-                                className={`flex justify-between items-start ${item.type === 'talk' || item.type === 'song' ? 'cursor-pointer select-none' : ''}`}
-                                onClick={item.type === 'talk' || item.type === 'song' ? () => toggleItem(item.id) : undefined}
+                                className={`flex justify-between items-start ${item.type === 'talk' ? 'cursor-pointer select-none' : ''}`}
+                                onClick={item.type === 'talk' ? () => toggleItem(item.id) : undefined}
                               >
                                 <div className="flex-1 pr-2">
-                                  <h3 className={`font-bold leading-tight ${item.type === 'music' ? 'text-slate-400' : (item.type === 'song' ? `${currentTheme.text} text-lg` : 'text-slate-800 text-lg')}`}>
+                                  <h3 className={`font-bold leading-tight ${item.type === 'music' ? 'text-slate-400' : (item.type === 'info' ? `${currentTheme.text} text-lg` : 'text-slate-800 text-lg')}`}>
                                     {mainTitle}
                                   </h3>
                                   {bibleRef && (
@@ -857,19 +910,12 @@
                                     </span>
                                   )}
                                 </div>
-                                {(item.type === 'talk' || item.type === 'song') && (
+                                {item.type === 'talk' && (
                                   expandedItems[item.id] ? <ChevronUp size={20} className={`${currentTheme.text} shrink-0 mt-1`} /> : <ChevronDown size={20} className={`${currentTheme.text} shrink-0 mt-1`} />
                                 )}
                               </div>
                             </div>
                           </div>
-
-                          {item.type === 'song' && expandedItems[item.id] && songLyrics[item.id] && (
-                            <div className={`mt-4 p-5 ${currentTheme.bgLight} rounded-xl border ${currentTheme.border} text-slate-800 whitespace-pre-wrap leading-relaxed italic shadow-inner`} style={{ fontSize: `${fontSize}px` }}>
-                              <h4 className={`font-bold ${currentTheme.text} mb-3 not-italic text-lg`}>{songLyrics[item.id].title}</h4>
-                              {songLyrics[item.id].text}
-                            </div>
-                          )}
 
                           {item.type === 'talk' && expandedItems[item.id] && (
                             <div className="mt-3">
@@ -911,7 +957,6 @@
                           )}
                         </div>
                         
-                        {/* Cajas de Asistencia */}
                         {isLastMorningItem && renderAttendanceInput('manana')}
                         {isLastAfternoonItem && renderAttendanceInput('tarde')}
                         
