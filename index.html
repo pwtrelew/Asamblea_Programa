@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,6 +9,7 @@
     <!-- Configuración PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#4c1d95">
+    <link rel="apple-touch-icon" href="./icon-192.png">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,6 +61,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // CONFIGURACIÓN DE FIREBASE (¡Ya actualizada con tus datos!)
         const firebaseConfig = {
             apiKey: "AIzaSyCGWUJZCTBSQZKBqLS5YUoYk16CeospWqM",
             authDomain: "programa-asamblea.firebaseapp.com",
@@ -202,11 +204,11 @@
           const [isMenuOpen, setIsMenuOpen] = useState(false);
           const [isExporting, setIsExporting] = useState(false);
           
-          const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+          const [loginForm, setLoginForm] = useState({ username: '' });
           const [loginError, setLoginError] = useState('');
           const [isLoggingIn, setIsLoggingIn] = useState(false);
           
-          const [newUserForm, setNewUserForm] = useState({ username: '', password: '' });
+          const [newUserForm, setNewUserForm] = useState({ username: '' });
           const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
           const [isCreatingUser, setIsCreatingUser] = useState(false);
 
@@ -246,7 +248,7 @@
             });
           }, []);
 
-          // Verificar si hay una sesión guardada localmente cuando la DB está lista
+          // Verificar sesión persistente (Auto-login)
           useEffect(() => {
               if (isDbReady) {
                   const savedUserStr = localStorage.getItem('asamblea-session');
@@ -286,6 +288,7 @@
             setDeferredPrompt(null);
           };
 
+          // Autoguardado en Firestore
           useEffect(() => {
             if (!currentUser || !isDbReady || !db) return;
             const timeoutId = setTimeout(async () => {
@@ -314,39 +317,38 @@
             }
           };
 
+          // Lógica de inicio de sesión sin contraseña
           const handleLogin = async (e) => {
             e.preventDefault();
-            if (!loginForm.username || !loginForm.password || !isDbReady || !db) return;
+            if (!loginForm.username || !isDbReady || !db) return;
             setIsLoggingIn(true);
             setLoginError('');
             
             const uname = loginForm.username.toLowerCase().trim();
             
             try {
-              const userRef = doc(db, 'users', uname);
-              const userSnap = await getDoc(userRef);
+              if (uname === 'admin') {
+                const adminRef = doc(db, 'users', 'admin');
+                await setDoc(adminRef, { role: 'admin' }, { merge: true });
+                await loadUserNotes('admin');
+                const adminObj = { username: 'admin', role: 'admin' };
+                setCurrentUser(adminObj);
+                localStorage.setItem('asamblea-session', JSON.stringify(adminObj));
+                setCurrentScreen('main');
+              } else {
+                const userRef = doc(db, 'users', uname);
+                const userSnap = await getDoc(userRef);
 
-              if (userSnap.exists()) {
-                const userData = userSnap.data();
-                if (userData.password === loginForm.password) {
+                if (userSnap.exists()) {
+                  const userData = userSnap.data();
                   await loadUserNotes(uname);
                   const userObj = { username: uname, role: userData.role };
                   setCurrentUser(userObj);
-                  localStorage.setItem('asamblea-session', JSON.stringify(userObj)); // Guardar sesión
+                  localStorage.setItem('asamblea-session', JSON.stringify(userObj));
                   setCurrentScreen('main');
-                  setLoginForm({ username: '', password: '' });
+                  setLoginForm({ username: '' });
                 } else {
-                  setLoginError('Contraseña incorrecta.');
-                }
-              } else {
-                if (uname === 'admin' && loginForm.password === 'admin56') {
-                  await setDoc(userRef, { password: 'admin56', role: 'admin' });
-                  const adminObj = { username: 'admin', role: 'admin' };
-                  setCurrentUser(adminObj);
-                  localStorage.setItem('asamblea-session', JSON.stringify(adminObj)); // Guardar sesión admin
-                  setCurrentScreen('main');
-                } else {
-                  setLoginError('Usuario no encontrado.');
+                  setLoginError('Usuario no registrado. Pídele al administrador que cree tu acceso.');
                 }
               }
             } catch (err) {
@@ -371,10 +373,11 @@
             } catch (err) {}
           };
 
+          // Creación de usuario sin contraseña
           const handleCreateUser = async (e) => {
             if (e) e.preventDefault();
             setAdminMessage({ type: '', text: '' });
-            if (!newUserForm.username || !newUserForm.password || !isDbReady || !db) return;
+            if (!newUserForm.username || !isDbReady || !db) return;
             setIsCreatingUser(true);
             
             const uname = newUserForm.username.toLowerCase().trim();
@@ -386,9 +389,9 @@
               if (userSnap.exists()) {
                 setAdminMessage({ type: 'error', text: 'Ese usuario ya existe.' });
               } else {
-                await setDoc(userRef, { password: newUserForm.password, role: 'user' });
+                await setDoc(userRef, { role: 'user' });
                 setAdminMessage({ type: 'success', text: 'Usuario creado con éxito.' });
-                setNewUserForm({ username: '', password: '' });
+                setNewUserForm({ username: '' });
                 loadAllUsers();
               }
             } catch (err) {
@@ -400,7 +403,7 @@
           };
 
           const handleLogout = () => {
-            localStorage.removeItem('asamblea-session'); // Borrar sesión al salir
+            localStorage.removeItem('asamblea-session');
             setCurrentUser(null);
             setNotes({});
             setCurrentScreen('login');
@@ -408,14 +411,15 @@
           };
 
           const handleNoteChange = (id, text) => {
-            if (!text.startsWith("Orador: ")) {
+            // El formato de "Orador: " se mantiene exclusivo para los campos de notas de discursos
+            if (!id.startsWith('attendance_') && !text.startsWith("Orador: ")) {
               text = "Orador: " + text.replace(/^Orador:\s*/, "");
             }
             setNotes(prev => ({ ...prev, [id]: text }));
           };
 
           const handleNoteFocus = (id) => {
-             if (!notes[id] || notes[id].trim() === "") {
+             if (!id.startsWith('attendance_') && (!notes[id] || notes[id].trim() === "")) {
                  handleNoteChange(id, "Orador: ");
              }
           };
@@ -423,6 +427,25 @@
           const toggleItem = (id) => setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
           const increaseFontSize = () => setFontSize(prev => Math.min(prev + 2, 32));
           const decreaseFontSize = () => setFontSize(prev => Math.max(prev - 2, 12));
+
+          const renderAttendanceInput = (sessionType) => {
+            const id = `attendance_${activeTab}_${sessionType}`;
+            return (
+              <div className={`mt-6 mb-2 bg-white rounded-xl p-4 shadow-sm border ${currentTheme.border} flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <Users size={18} className={currentTheme.icon} />
+                  <span className="font-bold text-slate-700 text-sm">Asistencia total ({sessionType === 'manana' ? 'Mañana' : 'Tarde'}):</span>
+                </div>
+                <input
+                  type="number"
+                  value={notes[id] || ''}
+                  onChange={(e) => setNotes(prev => ({ ...prev, [id]: e.target.value }))}
+                  className={`w-24 p-2 border border-slate-300 rounded-lg text-center font-bold text-slate-700 focus:ring-2 ${currentTheme.ring} focus:outline-none bg-slate-50`}
+                  placeholder="Ej. 1200"
+                />
+              </div>
+            );
+          };
 
           const handleExportPDF = () => {
             setIsMenuOpen(false);
@@ -447,7 +470,10 @@
                 let sectionHtml = `<h2 style="color: ${color}; margin-top: 30px; border-bottom: 2px solid ${color}40; padding-bottom: 8px;">${tabName}</h2>`;
 
                 if(program[tab]) {
-                  program[tab].forEach(item => {
+                  program[tab].forEach((item, index) => {
+                    const isLastMorningItem = index < program[tab].length - 1 && program[tab][index + 1].time === '1:35';
+                    const isLastAfternoonItem = index === program[tab].length - 1;
+
                     if (notes[item.id] && notes[item.id].trim() !== '' && notes[item.id].trim() !== 'Orador:') {
                       sectionHtml += `<h3 style="color: #0f172a; margin-top: 20px; margin-bottom: 10px; font-size: 16px;">■ ${item.title}</h3><div style="white-space: pre-wrap; background-color: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid ${color}; font-size: 14px; line-height: 1.6;">${notes[item.id]}</div>`;
                       sectionHasNotes = true;
@@ -462,6 +488,18 @@
                           hasNotes = true;
                         }
                       });
+                    }
+
+                    // Insertar asistencias en el PDF si existen
+                    if (isLastMorningItem && notes[`attendance_${tab}_manana`]) {
+                        sectionHtml += `<div style="text-align: right; font-weight: bold; color: ${color}; margin-top: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 8px;">Asistencia Mañana: ${notes[`attendance_${tab}_manana`]}</div>`;
+                        sectionHasNotes = true;
+                        hasNotes = true;
+                    }
+                    if (isLastAfternoonItem && notes[`attendance_${tab}_tarde`]) {
+                        sectionHtml += `<div style="text-align: right; font-weight: bold; color: ${color}; margin-top: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 8px;">Asistencia Tarde: ${notes[`attendance_${tab}_tarde`]}</div>`;
+                        sectionHasNotes = true;
+                        hasNotes = true;
                     }
                   });
                 }
@@ -529,16 +567,9 @@
                           <label className="block text-sm font-semibold text-slate-700 mb-1">Usuario</label>
                           <input 
                             type="text" value={loginForm.username}
-                            onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                            onChange={(e) => setLoginForm({username: e.target.value})}
                             className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none bg-slate-50"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña</label>
-                          <input 
-                            type="password" value={loginForm.password}
-                            onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none bg-slate-50"
+                            placeholder="Ej. Juan Perez"
                           />
                         </div>
                         <button type="submit" disabled={isLoggingIn} className="w-full bg-purple-700 text-white font-bold py-3 rounded-lg hover:bg-purple-800 transition-colors shadow-md mt-2 flex justify-center items-center disabled:opacity-70">
@@ -584,23 +615,14 @@
                       )}
                       
                       <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre de usuario</label>
-                            <input 
-                              type="text" value={newUserForm.username}
-                              onChange={(e) => setNewUserForm({...newUserForm, username: e.target.value})}
-                              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña</label>
-                            <input 
-                              type="text" value={newUserForm.password}
-                              onChange={(e) => setNewUserForm({...newUserForm, password: e.target.value})}
-                              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
-                            />
-                          </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre de usuario</label>
+                          <input 
+                            type="text" value={newUserForm.username}
+                            onChange={(e) => setNewUserForm({username: e.target.value})}
+                            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                            placeholder="Nombre del hermano/a"
+                          />
                         </div>
                         <button type="button" onClick={handleCreateUser} disabled={isCreatingUser} className="w-full bg-purple-700 text-white font-bold py-2.5 rounded-lg hover:bg-purple-800 transition-colors flex justify-center disabled:opacity-70">
                           {isCreatingUser ? <Loader2 className="animate-spin" size={20} /> : 'Registrar en Nube'}
@@ -657,7 +679,9 @@
               {isMenuOpen && <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>}
 
               <header className={`${currentTheme.main} text-white p-6 shadow-md rounded-b-2xl relative z-50 transition-colors duration-300`}>
-                <div className="absolute top-4 left-4 text-xs bg-white/20 px-3 py-1 rounded-full font-semibold">{currentUser?.username}</div>
+                <div className="absolute top-4 left-4 text-xs bg-white/20 px-3 py-1 rounded-full font-semibold flex items-center gap-1">
+                   <Users size={12} /> {currentUser?.username}
+                </div>
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-2 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
                   <MoreVertical size={24} />
                 </button>
@@ -729,12 +753,13 @@
                 </button>
               </div>
 
-              {}
               <main className="max-w-2xl mx-auto px-4 mt-2">
                 <div className="space-y-4">
                   {program[activeTab]?.map((item, index) => {
                     const isMorningStart = index === 0;
                     const isAfternoonStart = item.time === '1:35';
+                    const isLastMorningItem = index < program[activeTab].length - 1 && program[activeTab][index + 1].time === '1:35';
+                    const isLastAfternoonItem = index === program[activeTab].length - 1;
 
                     // Parsear el título para separar el texto bíblico si existe (al final, entre paréntesis)
                     const titleMatch = item.title.match(/^(.*?)\s*(\(.*?\))?$/);
@@ -837,6 +862,11 @@
                             </div>
                           )}
                         </div>
+                        
+                        {/* Cajas de Asistencia */}
+                        {isLastMorningItem && renderAttendanceInput('manana')}
+                        {isLastAfternoonItem && renderAttendanceInput('tarde')}
+                        
                       </React.Fragment>
                     );
                   })}
@@ -860,7 +890,7 @@
                 <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
                   <div className="bg-white p-6 rounded-xl border border-red-200 shadow-xl max-w-lg text-center">
                     <h1 className="text-red-600 font-bold text-xl mb-2">Algo salió mal</h1>
-                    <p className="text-slate-600 text-sm mb-4">La aplicación detectó un problema. Por favor recarga la página o revisa este error:</p>
+                    <p className="text-slate-600 text-sm mb-4">La aplicación detectó un problema. Por favor recarga la página.</p>
                     <code className="block bg-slate-100 p-3 rounded text-left text-xs text-red-500 overflow-auto">{this.state.error?.toString()}</code>
                   </div>
                 </div>
